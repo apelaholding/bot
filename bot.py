@@ -1,10 +1,10 @@
 import asyncio
 from playwright.async_api import async_playwright
+import os
 from supabase import create_client
 
-# TOKENS
-SUPABASE_URL = "https://lsvajvuxskbtgimtadpt.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzdmFqdnV4c2tidGdpbXRhZHB0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODYyNDI1NSwiZXhwIjoyMDU0MjAwMjU1fQ.OwVZbvvfstpIF0f_RJGTp40Mtoj5WK_Wpyu2bFXGbQc"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -41,7 +41,7 @@ async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
         )
 
         page = await context.new_page()
-        page.on("console", lambda msg: print(f"[CONSOLE] {msg.text}"))
+        
 
         
         for index, base_url in enumerate(UPSELL_PAGES):
