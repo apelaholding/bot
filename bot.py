@@ -3,12 +3,16 @@ from playwright.async_api import async_playwright
 import os
 from supabase import create_client
 
+# Configurações do Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# PAGINAS
+# Configuração se o Playwright roda em modo visível ou headless
+HEADLESS = os.getenv("HEADLESS", "True").lower() == "true"
+
+# Páginas a serem visitadas
 UPSELL_PAGES = [
     "https://safe-space.live/up/g-upsell/upsell-1/",
     "https://safe-space.live/up/g-upsell/upsell-2/",
@@ -19,20 +23,23 @@ UPSELL_PAGES = [
 ]
 
 async def obter_fsid_pendente():
+    """ Obtém um FSID pendente do Supabase """
     response = supabase.table("hotmart").select("*").eq("status", "pendente").limit(1).execute()
-    if response.data:
-        return response.data[0]["fsid"], response.data[0]["paginas"]
+    if response.data and len(response.data) > 0:
+        return response.data[0]["fsid"], response.data[0].get("paginas", "0/6")
     return None, None
 
 async def atualizar_status_fsid(fsid, status, paginas_atualizadas):
+    """ Atualiza o status do FSID no Supabase """
     supabase.table("hotmart").update({
         "status": status,
         "paginas": f"{paginas_atualizadas}/6"
     }).eq("fsid", fsid).execute()
 
 async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
+    """ Abre as páginas no Playwright e processa os botões de compra """
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=HEADLESS)
         context = await browser.new_context(
             viewport={"width": 375, "height": 812},
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.77 Mobile Safari/537.36",
@@ -41,9 +48,7 @@ async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
         )
 
         page = await context.new_page()
-        
 
-        
         for index, base_url in enumerate(UPSELL_PAGES):
             if paginas_concluidas > index:
                 print(f"[BOT] Página {index + 1} já foi processada. Pulando...")
@@ -55,7 +60,6 @@ async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
             await page.wait_for_load_state("domcontentloaded")
             await page.wait_for_timeout(2000)
 
-            
             try:
                 iframe_element = await page.wait_for_selector("iframe.custom-element__iframe", timeout=15000)
                 iframe = await iframe_element.content_frame()
@@ -65,21 +69,21 @@ async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
                     await iframe.click('button[data-testid="funnel-buy-button"]')
                     print(f"[BOT] Botão de compra clicado na página {index + 1}!")
                 else:
-                    print("[BOT] Iframe não encontrado na página. Verifique o seletor.")
+                    print("[BOT] Iframe não encontrado na página.")
 
             except Exception as e:
                 print(f"[BOT] Erro ao clicar no botão na página {index + 1}: {e}")
 
-           
             paginas_concluidas += 1
             await atualizar_status_fsid(fsid, "processando", paginas_concluidas)
             print(f"[BOT] Progresso atualizado: {paginas_concluidas}/6")
 
-            await page.wait_for_timeout(2000)  
+            await page.wait_for_timeout(2000)
 
         await browser.close()
 
 async def processar_automatizacao():
+    """ Loop contínuo para processar FSIDs pendentes """
     while True:
         fsid, paginas = await obter_fsid_pendente()
         if fsid:
