@@ -32,7 +32,7 @@ async def atualizar_status_fsid(fsid, status, paginas_atualizadas):
 
 async def abrir_pagina_com_fsid(fsid, paginas_concluidas):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             viewport={"width": 375, "height": 812},
             user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.77 Mobile Safari/537.36",
